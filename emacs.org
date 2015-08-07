@@ -1,0 +1,2080 @@
+#+TITLE: Randy Ridenour's Emacs Configuration
+#+AUTHOR: Randy Ridenour
+#+EMAIL: rlridenour@gmail.com
+#+OPTIONS: toc:3 num:nil
+* Emacs Config
+** Preliminaries
+   
+*** Installation
+  This is my Emacs configuration file. To install, put this file in ~/.emacs.d, along with an empty file called "custom.el" and a file called "init.el" containing the following: 
+
+#+begin_src emacs-lisp :tangle no
+(require 'org-install)
+(require 'ob-tangle)
+(org-babel-load-file (expand-file-name "emacs.org" user-emacs-directory))
+#+end_src
+
+*** User Information
+
+   :PROPERTIES:
+   :CUSTOM_ID: user-info
+   :END:
+
+Who am I? This makes sure that Emacs gets it right.
+
+    #+begin_src emacs-lisp
+      (setq user-full-name "Randy Ridenour")
+      (setq user-mail-address "rlridenour@gmail.com")
+    #+end_src
+
+*** Load Common Lisp
+We need common lisp to make some of this work.
+   #+begin_src emacs-lisp
+     (require 'cl)
+   #+end_src
+
+*** Debugging
+Turn on debugging just in case something goes wrong.   
+
+#+BEGIN_SRC emacs-lisp
+(setq debug-on-error t)
+(setq debug-on-quit t)
+#+END_SRC
+** Package Management
+    :PROPERTIES:
+    :CUSTOM_ID: package-management
+    :END:
+*** Repositories
+    There are some great packages that unfortunately aren't found on ELPA, so we need to include [[http://melpa.org/][MELPA]] and [[https://marmalade-repo.org/][marmalade]].
+
+     #+begin_src emacs-lisp
+       (load "package")
+       (package-initialize)
+       (add-to-list 'package-archives
+                    '("marmalade" . "http://marmalade-repo.org/packages/"))
+       (add-to-list 'package-archives
+                    '("melpa" . "http://melpa.milkbox.net/packages/") t)
+
+       (setq package-archive-enable-alist '(("melpa" deft magit)))
+     #+end_src
+
+*** Default packages
+
+     This is the list of packages used in this configuration. They are loaded in the next section.
+
+     #+begin_src emacs-lisp
+       (defvar rlr/packages '(ag
+                                   auctex
+                                   avy
+                                   ace-link
+                                   ace-window
+                                   ample-theme
+                                   base16-theme
+                                   company
+                                   easy-kill
+                                   ebib
+                                   evil
+                                   evil-leader
+                                   evil-matchit
+                                   evil-nerd-commenter
+                                   evil-org
+                                   eww-lnum
+                                   exec-path-from-shell
+                                   expand-region
+                                   flycheck
+                                   god-mode
+                                   hc-zenburn-theme
+                                   helm
+                                   helm-ag
+                                   helm-dash
+                                   helm-descbinds
+                                   helm-projectile
+                                   key-chord
+                                   magit
+                                   markdown-mode
+                                   multiple-cursors
+                                   olivetti
+                                   org
+                                   pandoc-mode
+                                   paredit
+                                   paradox
+                                   powerline
+                                   powerline-evil
+                                   projectile
+                                   solarized-theme
+                                   swiper
+                                   transpose-frame
+                                   undo-tree
+                                   web-mode
+                                   yasnippet
+                                   zenburn-theme
+                                   zop-to-char)
+         "Default packages")
+     #+end_src
+
+*** Install default packages
+
+    :PROPERTIES:
+    :CUSTOM_ID: package-install
+    :END:
+
+    When Emacs boots, check to make sure all of the packages defined
+    in =rlr/packages= are installed. If not, then install them.
+
+    #+begin_src emacs-lisp
+      (defun rlr/packages-installed-p ()
+       	(loop for pkg in rlr/packages
+	      when (not (package-installed-p pkg)) do (return nil)
+	      finally (return t)))
+
+      (unless (rlr/packages-installed-p)
+       	(message "%s" "Refreshing package database...")
+       	(package-refresh-contents)
+       	(dolist (pkg rlr/packages)
+	  (when (not (package-installed-p pkg))
+	    (package-install pkg))))
+    #+end_src
+
+** System  Settings
+*** Appearance
+
+Turn off splash screen.
+
+#+begin_src emacs-lisp
+(setq inhibit-splash-screen t
+      initial-scratch-message nil
+      initial-major-mode 'org-mode
+)
+#+end_src
+
+
+Load a few themes, then enable zenburn as the default.
+
+#+BEGIN_SRC emacs-lisp
+(load-theme 'solarized-light t)
+(load-theme 'solarized-dark t)
+(load-theme 'zenburn t)
+(load-theme 'hc-zenburn t)
+(load-theme 'base16-ashes-dark t)
+(enable-theme 'hc-zenburn)
+#+END_SRC
+
+Set the default font. The "frame-alist" is necessary to set the font when using emacs daemon and client.
+ 
+#+begin_src emacs-lisp
+    (set-default-font "Menlo-12") ;;; set default font
+(setq default-frame-alist '((font . "Menlo-12"))) ;;; set default font for emacs --daemon / emacsclient
+#+end_src
+
+Change background color for selected text.
+
+#+begin_src emacs-lisp
+(set-face-attribute 'region nil :background "#666")
+#+end_src
+
+Turn on syntax highlighting for all buffers
+
+#+BEGIN_SRC emacs-lisp
+  (global-font-lock-mode t)
+#+END_SRC
+
+Highlight the current line.
+
+#+begin_src emacs-lisp
+(global-hl-line-mode 1)
+#+end_src
+
+Match parentheses — especially useful when editing Lisp
+
+
+#+begin_src emacs-lisp
+(show-paren-mode 1)
+#+end_src
+
+Turn off the menu, tool bar, and scroll bar.
+
+#+BEGIN_SRC emacs-lisp
+(scroll-bar-mode -1)
+(tool-bar-mode -1)
+(menu-bar-mode -1)
+#+END_SRC
+
+Use a visual indicator instead of the annoying beeping.
+
+#+begin_src emacs-lisp
+(setq echo-keystrokes 0.1
+      use-dialog-box nil
+      visible-bell t)
+#+end_src
+
+Show line and column numbers in mode line:
+
+#+BEGIN_SRC emacs-lisp
+(line-number-mode 1)
+(column-number-mode 1)
+(winner-mode 1)
+#+END_SRC
+
+Hide mouse when typing:
+
+#+BEGIN_SRC emacs-lisp
+(setq make-pointer-invisible t)
+#+END_SRC
+
+*** System
+**** Custom Variables
+Keep custom-set variables separate from configuration file.
+
+#+BEGIN_SRC emacs-lisp
+  (setf custom-file "~/.emacs.d/custom.el")
+  (load custom-file)
+#+END_SRC
+
+**** Path
+Set path from shell
+   #+BEGIN_SRC emacs-lisp
+     (when (memq window-system '(mac ns))
+     (exec-path-from-shell-initialize))
+   #+END_SRC
+
+   Set modifier keys in OS X
+   #+BEGIN_SRC emacs-lisp
+    (setq mac-command-modifier 'super)
+    (setq mac-option-modifier 'meta)
+    (setq ns-function-modifier 'hyper) 
+   #+END_SRC
+
+**** Unicode
+
+Always prefer UTF-8
+
+#+BEGIN_SRC emacs-lisp
+(prefer-coding-system 'utf-8)
+(set-default-coding-systems 'utf-8)
+(set-terminal-coding-system 'utf-8)
+(set-keyboard-coding-system 'utf-8)
+(setq default-buffer-file-coding-system 'utf-8)
+#+END_SRC
+
+**** Save When Losing Focus
+#+begin_src emacs-lisp
+(defun save-all ()
+  (interactive)
+  (save-some-buffers t))
+(add-hook 'focus-out-hook 'save-all)
+#+end_src
+
+**** Confirmation
+ 
+Use "y" and "n":
+
+#+BEGIN_SRC emacs-lisp
+(defalias 'yes-or-no-p 'y-or-n-p)
+#+END_SRC
+
+
+Confirm killing emacs on graphical sessions:
+
+#+BEGIN_SRC emacs-lisp
+  (when (window-system)
+  (setq confirm-kill-emacs 'yes-or-no-p))
+#+END_SRC
+
+**** Edit by Visual Lines
+#+begin_src emacs-lisp
+(global-visual-line-mode t)
+#+end_src
+
+
+Navigate visual lines:
+
+#+BEGIN_SRC emacs-lisp
+  (setq line-move-visual t)
+#+END_SRC
+
+**** Sentences
+Single space ends sentence:
+
+#+BEGIN_SRC emacs-lisp
+(setq sentence-end-double-space nil)
+#+END_SRC
+
+**** Backup Files
+Don't make backup files
+#+begin_src emacs-lisp
+(setq make-backup-files nil)
+#+end_src
+
+**** Spelling
+#+begin_src emacs-lisp
+(setq flyspell-issue-welcome-flag nil)
+#+end_src
+
+From [[https://joelkuiper.eu/spellcheck_emacs][Joel Kuiper]]
+
+Enable flyspell mode for highlighting spelling errors.
+
+#+begin_src emacs-lisp
+(dolist (hook '(text-mode-hook))
+  (add-hook hook (lambda () (flyspell-mode 1))))
+#+end_src
+   
+Check comments and strings when coding.
+
+#+begin_src emacs-lisp
+(dolist (mode '(emacs-lisp-mode-hook
+                inferior-lisp-mode-hook
+                clojure-mode-hook
+                python-mode-hook
+                js-mode-hook
+                R-mode-hook))
+  (add-hook mode
+            '(lambda ()
+               (flyspell-prog-mode))))
+#+end_src
+
+Use F7 to check current word, M-F7 for next word.
+
+#+begin_src emacs-lisp
+(global-set-key (kbd "<f7>") 'ispell-word)
+(defun flyspell-check-next-highlighted-word ()
+  "Custom function to spell check next highlighted word"
+  (interactive)
+  (flyspell-goto-next-error)
+  (ispell-word))
+(global-set-key (kbd "M-<f7>") 'flyspell-check-next-highlighted-word)
+#+end_src
+
+Spell-check with right mouse button.
+
+#+begin_src emacs-lisp
+(eval-after-load "flyspell"
+  '(progn
+     (define-key flyspell-mouse-map [down-mouse-3] #'flyspell-correct-word)
+     (define-key flyspell-mouse-map [mouse-3] #'undefined)))
+#+end_src
+
+Use hunspell with US English dictionary.
+
+#+begin_src emacs-lisp
+(when (executable-find "hunspell")
+  (setq-default ispell-program-name "hunspell")
+  (setq ispell-really-hunspell t))
+#+end_src
+
+Store personal dictionary in Dropbox to sync between machines.
+
+#+begin_src emacs-lisp
+ (setq ispell-personal-dictionary "/Users/rlridenour/Dropbox/emacs/ridenour-ispell-dictionary ")
+#+end_src
+  
+**** Dired
+Hide various file types, most LaTeX auxiliary files, in Dired.
+#+begin_src emacs-lisp
+(require 'dired-x)
+(setq-default dired-omit-files-p t) ; this is buffer-local variable
+(setq dired-omit-files
+      (concat dired-omit-files "\\|^\\..+$"))
+(setq-default dired-omit-extensions '("fdb_latexmk" "aux" "bbl" "blg" "fls" "glo" "idx" "ilg" "ind" "ist" "log" "out" "gz" "DS_Store"))
+#+end_src
+**** Load Abbreviations
+#+begin_src emacs-lisp
+(load "~/Dropbox/emacs/my-emacs-abbrev")
+#+end_src
+
+**** Bookmarks
+#+begin_src emacs-lisp
+(require 'bookmark)
+(bookmark-bmenu-list)
+#+end_src
+
+**** Recent Files
+
+#+BEGIN_SRC emacs-lisp
+(require 'recentf)
+(setq recentf-max-saved-items 200
+      recentf-max-menu-items 15)
+(recentf-mode)
+#+END_SRC
+
+**** Kill Processes On Exit
+
+Don't ask for confirmation to kill processes when exiting Emacs. Credit to [[http://timothypratley.blogspot.com/2015/07/seven-specialty-emacs-settings-with-big.html][Timothy Pratley]].
+
+     #+begin_src emacs-lisp
+(defadvice save-buffers-kill-emacs (around no-query-kill-emacs activate)
+           (flet ((process-list ())) ad-do-it))
+     #+end_src
+
+** Package Settings
+*** Powerline
+   #+begin_src emacs-lisp
+     (require 'powerline)
+     (powerline-evil-center-color-theme)
+     (display-time-mode t)
+   #+end_src
+
+*** Transpose Frame
+#+begin_src emacs-lisp
+(require 'transpose-frame)
+#+end_src
+
+*** Helm
+These are settings for [[https://github.com/emacs-helm/helm][Emacs-helm]], which is a framework for quickly accessing things in Emacs. See this very nice [[http://tuhdo.github.io/helm-intro.html][introduction]] for more information. The keybindings below are standard suggestions that are commonly used. I don't use very many of them, as I have other shortcuts bound later.
+
+ #+BEGIN_SRC emacs-lisp
+(require 'helm)
+(require 'helm-config)
+
+
+;; The default "C-x c" is quite close to "C-x C-c", which quits Emacs.
+;; Changed to "C-c h". Note: We must set "C-c h" globally, because we
+;; cannot change `helm-command-prefix-key' once `helm-config' is loaded.
+(global-set-key (kbd "C-c h") 'helm-command-prefix)
+(global-unset-key (kbd "C-x c"));; need to change - conflicts with exist Emacs.
+
+(define-key helm-map (kbd "<tab>") 'helm-execute-persistent-action) ; rebind tab to run persistent action
+(define-key helm-map (kbd "C-i") 'helm-execute-persistent-action) ; make TAB works in terminal
+(define-key helm-map (kbd "C-z")  'helm-select-action) ; list actions using C-z
+
+(when (executable-find "curl")
+  (setq helm-google-suggest-use-curl-p t))
+
+(setq helm-split-window-in-side-p           t ; open helm buffer inside current window, not occupy whole other window
+      helm-move-to-line-cycle-in-source     t ; move to end or beginning of source when reaching top or bottom of source.
+      helm-ff-search-library-in-sexp        t ; search for library in `require' and `declare-function' sexp.
+      helm-scroll-amount                    8 ; scroll 8 lines other window using M-<next>/M-<prior>
+      helm-ff-file-name-history-use-recentf t)
+
+(helm-mode 1)
+(helm-autoresize-mode t)
+(global-set-key (kbd "M-x") 'helm-M-x)
+(setq helm-M-x-fuzzy-match t) ;; optional fuzzy matching for helm-M-x
+(global-set-key (kbd "M-y") 'helm-show-kill-ring)
+(global-set-key (kbd "C-x b") 'helm-mini)
+(global-set-key (kbd "s-r") 'helm-mini)
+(global-set-key (kbd "C-x C-b") 'helm-buffers-list)
+(setq helm-buffers-fuzzy-matching t
+      helm-recentf-fuzzy-match    t)
+(global-set-key (kbd "C-x C-f") 'helm-find-files)
+(global-set-key (kbd "s-f") 'helm-occur)
+(global-set-key (kbd "C-h a") 'helm-apropos)
+(global-set-key (kbd "C-c h g") 'helm-google-suggest)
+(global-set-key (kbd "C-c h p") 'helm-projectile)
+(global-set-key (kbd "C-h SPC") 'helm-all-mark-rings)
+(require 'helm-eshell)
+
+(add-hook 'eshell-mode-hook
+          #'(lambda ()
+              (define-key eshell-mode-map (kbd "C-c C-l")  'helm-eshell-history)))
+(define-key shell-mode-map (kbd "C-c C-l") 'helm-comint-input-ring)
+(define-key minibuffer-local-map (kbd "C-c C-l") 'helm-minibuffer-history)
+(global-set-key (kbd "C-c h g") 'helm-google-suggest)
+(global-set-key (kbd "C-c h x") 'helm-register)
+#+END_SRC
+ 
+
+**** Avoid helm backspace error
+#+begin_src emacs-lisp
+(require 'helm)
+(defun helm-backspace ()
+  "Forward to `backward-delete-char'.
+On error (read-only), quit without selecting."
+  (interactive)
+  (condition-case nil
+      (backward-delete-char 1)
+    (error
+     (helm-keyboard-quit))))
+
+(define-key helm-map (kbd "DEL") 'helm-backspace)
+#+end_src
+
+**** Make boring files invisible in helm
+#+begin_src emacs-lisp
+(custom-set-variables
+ '(helm-ff-tramp-not-fancy t)
+ '(helm-ff-skip-boring-files t)
+ '(helm-boring-file-regexp-list
+   '("\\.git$" "\\.hg$" "\\.svn$" "\\.CVS$" "\\._darcs$" "\\.la$" "\\.o$" "~$" "\\.Dropbox$" "\\.fdb_latexmk$" "\\.aux$" "\\.bbl$" "\\.blg$" "\\.fls$" "\\.glo$" "\\.idx$" "\\.ilg$" "\\.ind$" "\\.ist$" "\\.log$" "\\.out$" "\\.gz$" "\\.idlerc$" "\\.DS_Store"
+     "\\.so$" "\\.a$" "\\.elc$" "\\.fas$" "\\.fasl$" "\\.pyc$" "\\.pyo$"))
+ '(helm-boring-buffer-regexp-list
+   '("\\` " "\\*helm" "\\*helm-mode" "\\*Echo Area" "\\*tramp" "\\*Minibuf" "\\*epc")))
+
+
+#+end_src
+
+**** Enter Search Pattern in Header Line
+
+#+begin_src emacs-lisp
+(setq helm-split-window-in-side-p t)
+(defun helm-hide-minibuffer-maybe ()
+  (when (with-helm-buffer helm-echo-input-in-header-line)
+    (let ((ov (make-overlay (point-min) (point-max) nil nil t)))
+      (overlay-put ov 'window (selected-window))
+      (overlay-put ov 'face (let ((bg-color (face-background 'default nil)))
+                              `(:background ,bg-color :foreground ,bg-color)))
+      (setq-local cursor-type nil))))
+
+(add-hook 'helm-minibuffer-set-up-hook 'helm-hide-minibuffer-maybe)
+#+end_src
+
+*** Evil
+
+I used Vim before Textmate, before Sublime Text, before Emacs... I find the Vim commands much easier to remember, but for various reasons, my mind doesn't work well with modal editing. Anyway, I find editing with Vim very useful under certain circumstances, and Evil-mode is a great way to do that. 
+
+
+#+begin_src emacs-lisp
+(evil-mode 0)
+(require 'evil)
+#+end_src
+
+Having a leader key makes it possible to have some convenient keyboard shortcuts that wouldn't be possible otherwise. I use space as the leader key.
+
+#+BEGIN_SRC emacs-lisp
+  (global-evil-leader-mode)
+  (evil-leader/set-leader "SPC")
+
+#+END_SRC
+
+This is to make the escape key work (almost) like it does in Vim.
+
+#+begin_src emacs-lisp
+;; esc quits
+(defun minibuffer-keyboard-quit ()
+  "Abort recursive edit.
+In Delete Selection mode, if the mark is active, just deactivate it;
+then it takes a second \\[keyboard-quit] to abort the minibuffer."
+  (interactive)
+  (if (and delete-selection-mode transient-mark-mode mark-active)
+      (setq deactivate-mark  t)
+    (when (get-buffer "*Completions*") (delete-windows-on "*Completions*"))
+    (abort-recursive-edit)))
+   (define-key evil-normal-state-map [escape] 'keyboard-quit)
+   (define-key evil-visual-state-map [escape] 'keyboard-quit)
+   (define-key minibuffer-local-map [escape] 'minibuffer-keyboard-quit)
+   (define-key minibuffer-local-ns-map [escape] 'minibuffer-keyboard-quit)
+   (define-key minibuffer-local-completion-map [escape] 'minibuffer-keyboard-quit)
+   (define-key minibuffer-local-must-match-map [escape] 'minibuffer-keyboard-quit)
+   (define-key minibuffer-local-isearch-map [escape] 'minibuffer-keyboard-quit)
+   (global-set-key [escape] 'evil-exit-emacs-state)
+#+end_src
+
+This ensures that the Vim navigation keys navigate by visual lines.
+
+#+BEGIN_SRC emacs-lisp
+  (define-key evil-motion-state-map "j" #'evil-next-visual-line)
+  (define-key evil-motion-state-map "k" #'evil-previous-visual-line)
+  (define-key evil-motion-state-map "$" #'evil-end-of-visual-line)
+  (define-key evil-motion-state-map "^" #'evil-first-non-blank-of-visual-line)
+  (define-key evil-motion-state-map "0" #'evil-beginning-of-visual-line)
+#+END_SRC
+
+Evil binds =RET=, which is often used in other modes. This unbinds it, but there's a downside. =RET= now splits a line in normal mode, which causes me some aggravation sometimes. I'm not sure how best to fix it.
+
+#+BEGIN_SRC emacs-lisp
+(define-key evil-motion-state-map (kbd "RET") nil)
+(define-key evil-motion-state-map (kbd " ") nil)
+#+END_SRC
+
+This makes most Emacs commands work in insert mode.
+
+#+begin_src emacs-lisp
+(setcdr evil-insert-state-map nil)
+(define-key evil-insert-state-map [escape] 'evil-normal-state)
+
+#+end_src
+
+
+This makes isearch backward work in Evil.
+
+#+begin_src emacs-lisp
+(define-key evil-normal-state-map (kbd "C-r") 'isearch-backward)
+#+end_src
+
+*** Org 
+
+Configuration for the eminently useful [[http://orgmode.org/][Org Mode]].
+
+Org-mode is for keeping notes, maintaining ToDo lists, doing project
+planning, and authoring with a fast and effective plain-text system.
+Org Mode can be used as a very simple folding outliner or as a complex
+GTD system or tool for reproducible research and literate programming.
+
+For more information on org-mode check out [[http://orgmode.org/worg/][worg]], a large Org-mode wiki
+which is also implemented using Org-mode and [[http://git-scm.com/][git]].
+
+**** Evil-Org
+
+Use evil-org for evil keybindings in org mode.
+
+#+begin_src emacs-lisp
+(require 'evil-org)
+#+end_src
+
+**** Use Org Mode for TXT files
+#+begin_src emacs-lisp
+(add-to-list 'auto-mode-alist '("\\.txt\\'" . org-mode))
+#+end_src
+
+**** Smart-quote binding
+When in an org-mode buffer, bind TeX-insert-quote to =C-c "=. Turned off by default. 
+
+#+source: org-mode-smartquote-key
+#+begin_src emacs-lisp :tangle no
+  (add-hook 'org-mode-hook 'smart-quote-keys)
+  
+  (defun smart-quote-keys ()
+    (require 'typopunct)
+    (typopunct-change-language 'english)
+    (local-set-key (kbd "C-c \'") 'typopunct-insert-single-quotation-mark)
+    (local-set-key (kbd "C-c \"") 'typopunct-insert-quotation-mark)
+    )
+    
+  
+  
+#+end_src
+
+**** Archive Settings
+    Where archived projects and tasks go.
+#+source: orgmode-archive
+#+begin_src emacs-lisp
+  (setq org-archive-location "~/Dropbox/Org/archive.org::From %s")
+#+end_src
+
+**** Mobile Settings
+   Sync orgmode files with Dropbox and iPhone. 
+#+src-name: orgmode-mobile
+#+begin_src emacs-lisp
+   ;; Set to the location of your Org files on your local system
+   (setq org-directory "~/Dropbox/Org")
+   ;; Set to <your Dropbox root directory>/MobileOrg.
+   (setq org-mobile-directory "~/Dropbox/MobileOrg")
+   ;; Set to the files (or directory of files) you want sync'd
+   (setq org-agenda-files (quote ("~/Dropbox/Org")))
+   ;; Set to the name of the file where new notes will be stored
+   (setq org-mobile-inbox-for-pull "~/Dropbox/Org/from-mobile.org")
+   
+
+#+end_src
+
+**** Babel Settings
+   Configure org-mode so that when you edit source code in an indirect buffer (with C-c '), the buffer is opened in the current window. That way, your window organization isn't broken when switching.
+
+#+source: orgmode-indirect-buffer-settings
+#+begin_src emacs-lisp
+  (setq org-src-window-setup 'current-window)
+#+end_src
+
+**** ebib and citation settings
+    ebib is a bibtex database manager that works inside emacs. It can
+    talk to org-mode. See [[http://orgmode.org/worg/org-tutorials/org-latex-export.html#sec-17_2][this Worg tutorial]] for details. 
+#+source: ebib-setup
+#+begin_src emacs-lisp
+    (org-add-link-type "ebib" 'ebib)
+  
+   (org-add-link-type 
+     "cite" 'ebib
+     (lambda (path desc format)
+       (cond
+        ((eq format 'latex)
+         (if (or (not desc) (equal 0 (search "cite:" desc)))
+               (format "\\cite{%s}" path)
+               (format "\\cite[%s]{%s}" desc path)
+               )))))
+  
+   (org-add-link-type 
+     "parencite" 'ebib
+     (lambda (path desc format)
+       (cond
+        ((eq format 'latex)
+         (if (or (not desc) (equal 0 (search "parencite:" desc)))
+               (format "\\parencite{%s}" path)
+               (format "\\parencite[%s]{%s}" desc path)
+  )))))
+  
+  (org-add-link-type 
+     "textcite" 'ebib
+     (lambda (path desc format)
+       (cond
+        ((eq format 'latex)
+         (if (or (not desc) (equal 0 (search "textcite:" desc)))
+               (format "\\textcite{%s}" path)
+               (format "\\textcite[%s]{%s}" desc path)
+  )))))
+  
+  (org-add-link-type 
+     "autocite" 'ebib
+     (lambda (path desc format)
+       (cond
+        ((eq format 'latex)
+         (if (or (not desc) (equal 0 (search "autocite:" desc)))
+               (format "\\autocite{%s}" path)
+           (format "\\autocite[%s]{%s}" desc path)
+  )))))
+  
+  (org-add-link-type 
+   "footcite" 'ebib
+   (lambda (path desc format)
+     (cond
+      ((eq format 'latex)
+       (if (or (not desc) (equal 0 (search "footcite:" desc)))
+           (format "\\footcite{%s}" path)
+         (format "\\footcite[%s]{%s}" desc path)
+         )))))
+  
+  (org-add-link-type 
+   "fullcite" 'ebib
+   (lambda (path desc format)
+     (cond
+      ((eq format 'latex)
+       (if (or (not desc) (equal 0 (search "fullcite:" desc)))
+           (format "\\fullcite{%s}" path)
+         (format "\\fullcite[%s]{%s}" desc path)
+         )))))
+  
+  (org-add-link-type 
+   "citetitle" 'ebib
+   (lambda (path desc format)
+     (cond
+      ((eq format 'latex)
+       (if (or (not desc) (equal 0 (search "citetitle:" desc)))
+           (format "\\citetitle{%s}" path)
+         (format "\\citetitle[%s]{%s}" desc path)
+         )))))
+  
+  (org-add-link-type 
+   "citetitles" 'ebib
+   (lambda (path desc format)
+     (cond
+      ((eq format 'latex)
+       (if (or (not desc) (equal 0 (search "citetitles:" desc)))
+           (format "\\citetitles{%s}" path)
+         (format "\\citetitles[%s]{%s}" desc path)
+         )))))
+  
+  (org-add-link-type 
+     "headlessfullcite" 'ebib
+     (lambda (path desc format)
+       (cond
+        ((eq format 'latex)
+         (if (or (not desc) (equal 0 (search "headlessfullcite:" desc)))
+               (format "\\headlessfullcite{%s}" path)
+               (format "\\headlessfullcite[%s]{%s}" desc path)
+  )))))   
+#+end_src
+
+**** HTML export Settings
+Create =html= files form the =org= sources, to help with documentation. To set up org-mode for publishing projects to HTML you will need to change these settings, as they apply only to the Starter Kit. 
+
+#+source: html-export-settings
+#+begin_src emacs-lisp
+  (setq org-publish-project-alist
+         '(("org"
+            :base-directory "~/.emacs.d/"
+            :publishing-directory "~/Documents/websites/esk/"
+            :publishing-function org-html-publish-to-html
+            :auto-sitemap t            
+            :sitemap-filename "index.org"
+            :sitemap-title "Emacs Starter Kit for the Social Sciences: Documentation"
+            :section-numbers t
+            :table-of-contents t
+            :html-head "<link rel=\"stylesheet\"
+                   href=\"http://kieranhealy.org/css/org.css\"
+                   type=\"text/css\"/>"            )))
+  
+  (setq org-html-postamble nil)
+  
+#+end_src
+
+**** Exporter Settings and Helpful Packages
+HTML and LaTeX exporters are shown by default. We add the Markdown exporter to the menu.
+#+begin_src emacs-lisp
+
+;; Autocomplete for orgmode
+;; (require 'org-ac)
+;; (org-ac/config-default)
+
+;; Markdown exporter
+(require 'ox-md)
+
+(setq org-completion-use-ido t)
+;; (require 'org-special-blocks)
+;; (if window-system (require 'org-mouse))
+
+;; Compatibility with WindMove
+;; Make windmove work in org-mode:
+(add-hook 'org-shiftup-final-hook 'windmove-up)
+(add-hook 'org-shiftleft-final-hook 'windmove-left)
+(add-hook 'org-shiftdown-final-hook 'windmove-down)
+(add-hook 'org-shiftright-final-hook 'windmove-right)
+;; (if window-system (require 'org-mouse))
+#+end_src
+
+**** Use latexmk
+
+#+begin_src emacs-lisp
+(setq org-latex-to-pdf-process (list "latexmk -f -pdf %s"))
+#+end_src
+
+**** Org-Mode Hooks
+Make yasnippet work properly with org-mode. 
+
+#+begin_src emacs-lisp
+;;  (defun yas/org-very-safe-expand ()
+;;    (let ((yas/fallback-behavior 'return-nil)) (yas/expand)))
+
+(defun yas-org-very-safe-expand ()
+  (let ((yas-fallback-behavior 'return-nil))
+    (and (fboundp 'yas-expand) (yas-expand))))
+
+(add-hook 'org-mode-hook
+          (lambda ()
+            (add-to-list 'org-tab-first-hook
+                         'yas-org-very-safe-expand)
+            ))
+
+#+end_src
+
+#+begin_src emacs-lisp
+  (add-hook 'org-mode-hook
+            (lambda ()
+              (local-set-key "\M-\C-n" 'outline-next-visible-heading)
+              (local-set-key "\M-\C-p" 'outline-previous-visible-heading)
+              (local-set-key "\M-\C-u" 'outline-up-heading)
+              ;; table
+              (local-set-key "\M-\C-w" 'org-table-copy-region)
+              (local-set-key "\M-\C-y" 'org-table-paste-rectangle)
+              (local-set-key "\M-\C-l" 'org-table-sort-lines)
+              ;; display images
+              (local-set-key "\M-I" 'org-toggle-iimage-in-org)
+              ;; yasnippet (using the new org-cycle hooks)
+              ;;(make-variable-buffer-local 'yas/trigger-key)
+              ;;(setq yas/trigger-key [tab])
+              ;;(add-to-list 'org-tab-first-hook 'yas/org-very-safe-expand)
+              ;;(define-key yas/keymap [tab] 'yas/next-field)
+              ))
+#+end_src
+
+**** Speed keys
+Speed commands enable single-letter commands in Org-mode files when
+the point is at the beginning of a headline, or at the beginning of a
+code block.
+
+See the =org-speed-commands-default= variable for a list of the keys
+and commands enabled at the beginning of headlines.  All code blocks
+are available at the beginning of a code block, the following key
+sequence =C-c C-v h= (bound to =org-babel-describe-bindings=) will
+display a list of the code blocks commands and their related keys.
+
+#+begin_src emacs-lisp
+  (setq org-use-speed-commands t)
+#+end_src
+
+**** Code blocks
+This activates a number of widely used languages, you are encouraged
+to activate more languages using the customize interface for the
+=org-babel-load-languages= variable, or with an elisp form like the
+one below.  The customize interface of =org-babel-load-languages=
+contains an up to date list of the currently supported languages.
+#+begin_src emacs-lisp
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((emacs-lisp . t)
+     (sh . t)
+     (R . t)
+     (perl . t)
+     (ruby . t)
+     (python . t)
+     (js . t)
+     (haskell . t)))
+#+end_src
+
+The next block makes org-babel aware that a lower-case 'r' in a =src= block header should be processed as R. 
+
+#+source: add-r
+#+begin_src emacs-lisp
+    (add-to-list 'org-src-lang-modes
+                 '("r" . ess-mode))
+#+end_src
+
+**** Code block fontification
+   :PROPERTIES:
+   :CUSTOM_ID: code-block-fontification
+   :END:
+
+The following displays the contents of code blocks in Org-mode files
+using the major-mode of the code.  It also changes the behavior of
+=TAB= to as if it were used in the appropriate major mode.  This means
+that reading and editing code form inside of your Org-mode files is
+much more like reading and editing of code using its major mode.
+#+begin_src emacs-lisp
+  (setq org-src-fontify-natively t)
+  (setq org-src-tab-acts-natively t)
+#+end_src
+
+Don't ask for confirmation on every =C-c C-c= code-block compile. 
+
+#+source: turn-off-code-block-confirm
+#+begin_src emacs-lisp
+  (setq org-confirm-babel-evaluate nil)
+#+end_src
+
+**** Nice Bulleted Lists
+#+name: org-bullets
+#+begin_src emacs-lisp :tangle no
+  (require 'org-bullets)
+  (add-hook 'org-mode-hook (lambda () (org-bullets-mode 1)))
+#+end_src
+
+#+source: message-line
+#+begin_src emacs-lisp
+  (message "Starter Kit Org loaded.")
+#+end_src
+
+**** Configure Org-babel
+   - Add LaTeX to the list of languages Org-babel will recognize.
+#+srcname: add-latex
+#+begin_src emacs-lisp 
+     (require 'ob-latex)
+  ;; (org-babel-add-interpreter "latex")
+  ;; (add-to-list 'org-babel-tangle-langs '("latex" "tex"))
+#+end_src
+   - Add LaTeX to a list of languages that raise noweb-type errors.
+#+srcname: noweb-error
+#+begin_src emacs-lisp 
+  (add-to-list 'org-babel-noweb-error-langs "latex")
+#+end_src
+
+
+#+source: message-line
+#+begin_src emacs-lisp
+  (message "Starter Kit LaTeX loaded.")
+#+end_src
+
+**** Org Capture
+
+Use C-c c for Org Capture to ~/Dropbox/notes.org
+
+#+begin_src emacs-lisp
+;;(setq org-default-notes-file (concat org-directory "/notes.org"))
+(setq org-capture-templates
+      '(("t" "Todo" entry (file+headline "~/Dropbox/Org/tasks.org" "Tasks")
+             "* TODO %?\n  %i\n  %a")
+        ("j" "Journal" entry (file+datetree "~/Dropbox/Org/journal.org")
+             "* %?\nEntered on %U\n  %i\n  %a")))
+     (define-key global-map "\C-cc" 'org-capture)
+#+end_src
+**** Tab doesn't split headings
+#+begin_src emacs-lisp
+(setq org-M-RET-may-split-line '((item) (default . t)))
+#+end_src
+ 
+*** Markdown
+Preview Markdown files in Marked.app with C-c m. I also use a command to open in external an app.
+#+begin_src emacs-lisp
+(defun markdown-preview-file ()
+  "run Marked on the current file and revert the buffer"
+  (interactive)
+  (shell-command
+   (format "open -a /Applications/Marked\\ 2.app %s"
+           (shell-quote-argument (buffer-file-name))))
+  )
+;; (global-set-key "\C-cm" 'markdown-preview-file)
+#+end_src
+
+Make markdown-mode use Multimarkdown.
+
+#+begin_src emacs-lisp
+(defun markdown-custom ()
+  "markdown-mode-hook"
+  (setq markdown-command "multimarkdown"))
+(add-hook 'markdown-mode-hook '(lambda() (markdown-custom)))
+#+end_src
+
+Make it easier to bold and italicize in Markdown Mode
+#+begin_src emacs-lisp
+(add-hook 'markdown-mode-hook
+          (lambda ()
+            (local-set-key (kbd "s-b") 'markdown-insert-bold)
+            (local-set-key (kbd "s-i") 'markdown-insert-italic)))
+#+end_src
+
+I haven't yet figured out why, but pressing =RET= deletes whitespace at the end of the line. That's useful for writing code, I'm sure, but not for writing Markdown text requiring hard line breaks. This little function just inserts two spaces at the end of the line and moves to the next line. I use it for prayers and poetry that I post on the blog, so it's called "mdpoetry."
+
+#+begin_src emacs-lisp
+(fset 'mdpoetry
+      "\C-e  \C-n")
+(global-set-key (kbd "<f9>") 'mdpoetry)
+#+end_src
+
+*** LaTeX
+   Support for editing LaTeX.
+
+**** Italics and Bold
+#+begin_src emacs-lisp
+(add-hook 'LaTeX-mode-hook
+   '(lambda ()
+        (define-key LaTeX-mode-map (kbd "s-i") (kbd "\C-c \C-f \C-e"))
+	(define-key LaTeX-mode-map (kbd "s-b") (kbd "\C-c \C-f \C-b"))
+    )
+)
+#+end_src
+
+**** In-text Smart Quotes (XeLaTeX only)
+    Redefine TeX-open-quote and TeX-close-quote to be smart quotes by default. Below, in the local org-mode settings, we'll also map the relevant function to a key we can use in org-mode, too. If you don't use XeLaTeX for processing all your =.tex= files, you should disable this option.
+
+#+source: smart-quotes
+#+begin_src emacs-lisp
+  (setq TeX-open-quote "“")
+  (setq TeX-close-quote "”")
+#+end_src
+
+**** SyncTeX, PDF mode, Skim
+Set up AUCTeX to work with the Skim PDF viewer.
+
+#+begin_src emacs-lisp
+
+ 
+;; Use Skim as viewer, enable source <-> PDF sync
+;; make latexmk available via C-c C-c
+;; Note: SyncTeX is setup via ~/.latexmkrc (see below)
+(add-hook 'LaTeX-mode-hook (lambda ()
+  (push
+    '("latexmk" "latexmk -pdf %s" TeX-run-TeX nil t
+      :help "Run latexmk on file")
+    TeX-command-list)))
+(add-hook 'TeX-mode-hook '(lambda () (setq TeX-command-default "latexmk")))
+ 
+;; use Skim as default pdf viewer
+;; Skim's displayline is used for forward search (from .tex to .pdf)
+;; option -b highlights the current line; option -g opens Skim in the background  
+(setq TeX-view-program-selection '((output-pdf "PDF Viewer")))
+(setq TeX-view-program-list
+     '(("PDF Viewer" "/Applications/Skim.app/Contents/SharedSupport/displayline -b -g %n %o %b")))
+
+;; Start Emacs server
+(server-start)
+#+end_src
+
+
+
+
+#+srcname: sync
+#+begin_src emacs-lisp :tangle no
+     
+    ;; Make emacs aware of multi-file projects
+    ;; (setq-default TeX-master nil)
+    
+    ;; Auto-raise Emacs on activation (from Skim, usually)
+    (defun raise-emacs-on-aqua()
+    (shell-command "osascript -e 'tell application \"Emacs\" to activate' &"))
+    (add-hook 'server-switch-hook 'raise-emacs-on-aqua)
+#+end_src
+
+**** Local RefTeX Settings
+Tell RefTeX where the bibliography files are. 
+
+#+srcname: local-reftex
+#+begin_src emacs-lisp    
+    ;; Make RefTex able to find my local bib files
+    (setq reftex-bibpath-environment-variables
+    '("/Users/rlridenour/Dropbox/bibtex"))
+
+    ;; Default bibliography
+    (setq reftex-default-bibliography
+    '("/Users/rlridenour/Dropbox/bibtex/randybib.bib"))
+#+end_src
+
+
+**** Load Support Packages
+***** Prettify Math in Buffers
+#+source: latex-pretty-symbols 
+#+begin_src emacs-lisp :tangle no
+  (require 'latex-pretty-symbols)
+#+end_src
+
+***** Load RefTeX
+#+srcname: reftex-support
+#+begin_src emacs-lisp 
+  (add-hook 'LaTeX-mode-hook 'turn-on-reftex)   ; with AUCTeX LaTeX mode
+  (add-hook 'pandoc-mode-hook 'turn-on-reftex)  ; with Pandoc mode
+  (autoload 'reftex-mode     "reftex" "RefTeX Minor Mode" t)
+  (autoload 'turn-on-reftex  "reftex" "RefTeX Minor Mode" nil)
+  (autoload 'reftex-citation "reftex-cite" "Make citation" nil)
+  (autoload 'reftex-index-phrase-mode "reftex-index" "Phrase mode" t)
+  (add-hook 'LaTeX-mode-hook 'turn-on-reftex)   ; with AUCTeX LaTeX mode
+  (add-hook 'latex-mode-hook 'turn-on-reftex)   ; with Emacs latex mode
+  
+  ;; Make RefTeX faster
+  (setq reftex-enable-partial-scans t)
+  (setq reftex-save-parse-info t)
+  (setq reftex-use-multiple-selection-buffers t)
+  (setq reftex-plug-into-AUCTeX t)
+  
+  ;; Make RefTeX work with Org-Mode
+  ;; use 'C-c (' instead of 'C-c [' because the latter is already
+  ;; defined in orgmode to the add-to-agenda command.
+  (defun org-mode-reftex-setup ()
+    (load-library "reftex") 
+    (and (buffer-file-name)
+    (file-exists-p (buffer-file-name))
+    (reftex-parse-all))
+    (define-key org-mode-map (kbd "C-c (") 'reftex-citation))
+  
+  (add-hook 'org-mode-hook 'org-mode-reftex-setup)
+  
+  ;; RefTeX formats for biblatex (not natbib), and for pandoc
+  (setq reftex-cite-format
+        '(
+          (?\C-m . "\\cite[]{%l}")
+          (?t . "\\textcite{%l}")
+          (?a . "\\autocite[]{%l}")
+          (?p . "\\parencite{%l}")
+          (?f . "\\footcite[][]{%l}")
+          (?F . "\\fullcite[]{%l}")
+          (?P . "[@%l]")
+          (?T . "@%l [p. ]")
+          (?x . "[]{%l}")
+          (?X . "{%l}")
+          ))
+  
+  (setq font-latex-match-reference-keywords
+        '(("cite" "[{")
+          ("cites" "[{}]")
+          ("footcite" "[{")
+          ("footcites" "[{")
+          ("parencite" "[{")
+          ("textcite" "[{")
+          ("fullcite" "[{") 
+          ("citetitle" "[{") 
+          ("citetitles" "[{") 
+          ("headlessfullcite" "[{")))
+  
+  (setq reftex-cite-prompt-optional-args nil)
+  (setq reftex-cite-cleanup-optional-args t)
+  
+#+end_src
+
+***** Load ebib
+    ebib is a bibtex database manager that works inside emacs. It can
+    talk to org-mode. See [[http://ebib.sourceforge.net/][the ebib project page]] for more. When Ebib is
+    loaded, you can run it with =M-x ebib=.
+  
+#+source: ebib-load
+#+begin_src emacs-lisp
+  (autoload 'ebib "ebib" "Ebib, a BibTeX database manager." t)
+  (setq ebib-preload-bib-files 
+        '("/Users/kjhealy/Documents/bibs/socbib.bib"))
+  (add-hook 'LaTeX-mode-hook #'(lambda ()
+          (local-set-key "\C-cb" 'ebib-insert-bibtex-key)))
+#+end_src
+
+**** Configure AucTeX 
+***** Configure Biber
+Allow AucTeX to use biber as well as/instead of bibtex.
+#+source: setup-biber
+#+begin_src emacs-lisp
+    ;; Biber under AUCTeX
+    (defun TeX-run-Biber (name command file)
+      "Create a process for NAME using COMMAND to format FILE with Biber." 
+     (let ((process (TeX-run-command name command file)))
+        (setq TeX-sentinel-function 'TeX-Biber-sentinel)
+        (if TeX-process-asynchronous
+            process
+          (TeX-synchronous-sentinel name file process))))
+    
+    (defun TeX-Biber-sentinel (process name)
+      "Cleanup TeX output buffer after running Biber."
+      (goto-char (point-max))
+      (cond
+       ;; Check whether Biber reports any warnings or errors.
+       ((re-search-backward (concat
+                             "^(There \\(?:was\\|were\\) \\([0-9]+\\) "
+                             "\\(warnings?\\|error messages?\\))") nil t)
+        ;; Tell the user their number so that she sees whether the
+        ;; situation is getting better or worse.
+        (message (concat "Biber finished with %s %s. "
+                         "Type `%s' to display output.")
+                 (match-string 1) (match-string 2)
+                 (substitute-command-keys
+                  "\\\\[TeX-recenter-output-buffer]")))
+       (t
+        (message (concat "Biber finished successfully. "
+                         "Run LaTeX again to get citations right."))))
+      (setq TeX-command-next TeX-command-default))
+  
+  (eval-after-load "tex"
+    '(add-to-list 'TeX-command-list '("Biber" "biber %s" TeX-run-Biber nil t :help "Run Biber"))
+    )    
+
+#+end_src
+
+***** Use Biblatex key template by default in bib files
+#+source: bibtex-dialect
+#+begin_src emacs-lisp :tangle no
+  (setq bibtex-dialect "BibTeX")
+#+end_src
+
+***** Use '-' as the separator in auto-generated bibtex keys
+We use this (rather than the underscore character) for compatibilty with Pandoc.
+
+#+source: bibtex-key-separator
+#+begin_src emacs-lisp :tangle no
+  (setq bibtex-autokey-titleword-separator "_")
+  (setq bibtex-autokey-year-title-separator ":_")
+#+end_src
+
+**** Configure RefTeX
+***** Default Bibliography
+    This is important when editing source code in Org-babel, since the
+      LaTeX source code block being edited probably doesn't include
+      the \bibliography{} command that RefTeX uses to find
+      bibliographic database(s). Make certain also that RefTeX has a
+      path to the bibliographic databases. This source-code block is
+      turned off be default as it should be configured by the user in
+      a personal file/directory.
+#+srcname: default-bibliography
+#+begin_src emacs-lisp :tangle no
+  (setq reftex-default-bibliography
+        (quote
+         ("user.bib" "local.bib")))
+#+end_src
+
+*** Avy
+   Avy is a great package for moving to locations in the file.
+
+#+begin_src emacs-lisp
+(ace-link-setup-default)
+#+end_src
+
+*** Ace-Window
+
+Set Ace-Window navigation keys
+
+#+begin_src emacs-lisp
+;; Rebind goto-line
+;;(global-set-key (kbd "M-g g") 'goto-line)
+;; Avy keybindings
+(global-set-key (kbd "M-p") 'ace-window)
+(setq aw-keys '(?a ?s ?d ?f ?g ?h ?j ?k ?l))
+;;(global-set-key (kbd "C-'") 'avy-goto-char-2)
+(global-set-key (kbd "M-g M-g") 'avy-goto-char-2)
+(global-set-key (kbd "M-g l") 'avy-goto-line)
+(global-set-key (kbd "M-g e") 'avy-goto-word-0)
+(global-set-key (kbd "M-g w") 'avy-goto-word-1)
+(global-set-key (kbd "s-2") 'avy-goto-char-2)
+
+#+end_src
+
+*** Yasnippet
+
+Load Yasnippet and use personal snippets from Dropbox.
+
+#+begin_src emacs-lisp
+;; Use personal snippets from Dropbox.
+(setq yas-snippet-dirs
+      '("~/Dropbox/emacs/snippets"
+        "~/.emacs.d/elpa/yasnippet-20150415.244/snippets"
+        ))
+(yas-global-mode 1)
+#+end_src
+
+*** Easy Kill
+#+begin_src emacs-lisp
+(global-set-key [remap kill-ring-save] 'easy-kill)
+(global-set-key [remap mark-sexp] 'easy-mark)
+#+end_src
+
+*** Company Mode
+#+begin_src emacs-lisp
+(add-hook 'after-init-hook 'global-company-mode)
+#+end_src
+
+*** Evil Nerd Commenter
+Use M-; to comment lines.
+#+begin_src emacs-lisp
+  (global-set-key (kbd "M-;") 'evilnc-comment-or-uncomment-lines)
+  (global-set-key (kbd "C-c p") 'evilnc-comment-or-uncomment-paragraphs)
+#+end_src
+
+*** Pandoc  
+A pandoc menu for markdown and tex files. 
+#+src-name: pandoc_mode
+#+begin_src emacs-lisp 
+  (load "pandoc-mode")
+  (add-hook 'markdown-mode-hook 'pandoc-mode)
+  (add-hook 'TeX-mode-hook 'pandoc-mode)
+  (add-hook 'pandoc-mode-hook 'pandoc-load-default-settings)
+#+end_src
+
+*** Multiple Cursors  
+*** Olivetti
+Toggle a distraction-free environment for writing. Typing "Command-m" enters a full screen mode with the text centered in a column.
+#+begin_src emacs-lisp
+(defun rlr/toggle-writing-mode ()
+  "Toggle a distraction-free environment for writing."
+  (interactive)
+  (cond ((bound-and-true-p olivetti-mode)
+         (olivetti-mode -1)
+         (olivetti-toggle-hide-modeline)
+         (toggle-frame-fullscreen)
+         (menu-bar-mode 1))
+        (t
+         (olivetti-mode 1)
+         (olivetti-toggle-hide-modeline)
+         (toggle-frame-fullscreen)
+         (menu-bar-mode -1))))
+(global-set-key (kbd "s-m") 'rlr/toggle-writing-mode) 
+#+end_src
+
+*** Eww
+
+Eww is a web browser that is part of Emacs. 
+
+#+begin_src emacs-lisp
+(eval-after-load "eww"
+  '(progn (define-key eww-mode-map "f" 'eww-lnum-follow)
+          (define-key eww-mode-map "F" 'eww-lnum-universal)))
+#+end_src
+
+#+begin_src emacs-lisp
+(defun oleh-eww-hook ()
+  (define-key eww-mode-map "j" 'oww-down)
+  (define-key eww-mode-map "k" 'oww-up)
+  (define-key eww-mode-map "l" 'forward-char)
+  (define-key eww-mode-map "L" 'eww-back-url)
+  (define-key eww-mode-map "h" 'backward-char)
+  (define-key eww-mode-map "v" 'recenter-top-bottom)
+  (define-key eww-mode-map "V" 'eww-view-source)
+  (define-key eww-mode-map "m" 'eww-follow-link)
+  (define-key eww-mode-map "a" 'move-beginning-of-line)
+  (define-key eww-mode-map "e" 'move-end-of-line)
+  (define-key eww-mode-map "o" 'ace-link-eww)
+  (define-key eww-mode-map "y" 'eww))
+(add-hook 'eww-mode-hook 'oleh-eww-hook)
+
+#+end_src
+
+#+begin_src emacs-lisp
+(defun oww-down (arg)
+  (interactive "p")
+  (if (bolp)
+      (progn
+        (forward-paragraph arg)
+        (forward-line 1))
+    (line-move arg)))
+
+(defun oww-up (arg)
+  (interactive "p")
+  (if (bolp)
+      (progn
+        (forward-line -1)
+        (backward-paragraph arg)
+        (forward-line 1))
+    (line-move (- arg))))
+#+end_src
+
+*** Blog
+
+I use this for my Jekyll blog. 
+
+#+begin_src emacs-lisp
+(defun jekyll-timestamp ()
+  "Update existing date: timestamp on a Jekyll page or post."
+  (interactive)
+  (save-excursion (
+		   goto-char 1)
+		  (re-search-forward "^date:")
+		  (let ((beg (point)))
+		    (end-of-line)
+		    (delete-region beg (point)))
+		  (insert (concat " " (format-time-string "%Y-%m-%d %H:%M:%S %z"))))
+  )
+;; TODO: Make the function add a date variable if none exists.
+
+;; (defun jekyll-timestamp ()
+;;   "Insert a time stamp suitable for use in a Jekyll page or post.  Replaces current text selection."
+;;   (interactive)
+;;   (when (region-active-p) (delete-region (region-beginning) (region-end) ) )
+;;   (insert (format-time-string "%Y-%m-%d %H:%M:%S %z")))
+
+;; All of the below is taken from http://www.gorgnegre.com/linux/using-emacs-orgmode-to-blog-with-jekyll.html
+;; (Later tweaked a bit.)
+
+(global-set-key (kbd "C-x j n") 'jekyll-draft-post)
+(global-set-key (kbd "C-x j p") 'jekyll-publish-post)
+(global-set-key (kbd "C-x j t") 'jekyll-timestamp)
+(global-set-key (kbd "C-x j o") (lambda () (interactive) (find-file "~/Sites/rlridenour.github.io/")))
+
+(global-set-key (kbd "C-x j P") (lambda () (interactive) (find-file "~/Sites/rlridenour.github.io/_posts/")))
+(global-set-key (kbd "C-x j D") (lambda () (interactive) (find-file "~/Sites/rlridenour.github.io/_drafts/")))
+
+(defvar jekyll-directory "~/Sites/rlridenour.github.io/" "Path to Jekyll blog.")
+(defvar jekyll-drafts-dir "_drafts/" "Relative path to drafts directory.")
+(defvar jekyll-posts-dir "_posts/" "Relative path to posts directory.")
+(defvar jekyll-post-ext ".md"  "File extension of Jekyll posts.")
+(defvar jekyll-post-template "---\nlayout: post\ntitle: %s\ntags:\n- \ncomments: true\ndate: \n---\n"
+  "Default template for Jekyll posts. %s will be replace by the post title.")
+
+(defun jekyll-make-slug (s) "Turn a string into a slug."
+  (replace-regexp-in-string " " "-"  (downcase (replace-regexp-in-string "[^A-Za-z0-9 ]" "" s))))
+
+(defun jekyll-yaml-escape (s) "Escape a string for YAML."
+  (if (or (string-match ":" s) (string-match "\"" s)) (concat "\"" (replace-regexp-in-string "\"" "\\\\\"" s) "\"") s))
+
+(defun jekyll-draft-post (title) "Create a new Jekyll blog post."
+  (interactive "sPost Title: ")
+  (let ((draft-file (concat jekyll-directory jekyll-drafts-dir
+                            (jekyll-make-slug title)
+                            jekyll-post-ext)))
+    (if (file-exists-p draft-file)
+        (find-file draft-file)
+      (find-file draft-file)
+      (insert (format jekyll-post-template (jekyll-yaml-escape title))))))
+
+(defun jekyll-publish-post () "Move a draft post to the posts directory, and rename it so that it contains the date."
+  (interactive)
+  (cond
+   ((not (equal
+          (file-name-directory (buffer-file-name (current-buffer)))
+          (expand-file-name (concat jekyll-directory jekyll-drafts-dir))))
+    (message "This is not a draft post.")
+    (insert (file-name-directory (buffer-file-name (current-buffer))) "\n"
+            (concat jekyll-directory jekyll-drafts-dir)))
+   ((buffer-modified-p)
+    (message "Can't publish post; buffer has modifications."))
+   (t
+    (let ((filename
+           (concat jekyll-directory jekyll-posts-dir
+                   (format-time-string "%Y-%m-%d-")
+                   (file-name-nondirectory
+                    (buffer-file-name (current-buffer)))))
+          (old-point (point)))
+      (rename-file (buffer-file-name (current-buffer))
+                   filename)
+      (kill-buffer nil)
+      (find-file filename)
+      (set-window-point (selected-window) old-point)))))
+
+(provide 'setup-jekyll)
+
+
+#+end_src
+
+** Functions
+*** Insert date
+
+#+begin_src emacs-lisp
+(defun insert-date ()
+  "Insert current date yyyymmdd."
+  (interactive)
+  (insert (format-time-string "%Y%m%d")))
+(global-set-key (kbd "<f8>") 'insert-date)
+(global-set-key (kbd "C-c d") 'insert-date)
+#+end_src
+
+*** Compact-Uncompact Block
+
+#+begin_src emacs-lisp
+  ;; Fill-paragraph from Xah Lee (http://ergoemacs.org/emacs/modernization_fill-paragraph.html)
+
+  (defun rlr/compact-uncompact-block ()
+    "Remove or add line ending chars on current paragraph.
+  This command is similar to a toggle of `fill-paragraph'.
+  When there is a text selection, act on the region."
+    (interactive)
+
+    ;; This command symbol has a property “'stateIsCompact-p”.
+    (let (currentStateIsCompact (bigFillColumnVal 90002000) (deactivate-mark nil))
+      ;; 90002000 is just random. you can use `most-positive-fixnum'
+
+      (save-excursion
+        ;; Determine whether the text is currently compact.
+        (setq currentStateIsCompact
+              (if (eq last-command this-command)
+                  (get this-command 'stateIsCompact-p)
+                (if (> (- (line-end-position) (line-beginning-position)) fill-column) t nil) ) )
+
+        (if (use-region-p)
+            (if currentStateIsCompact
+                (fill-region (region-beginning) (region-end))
+              (let ((fill-column bigFillColumnVal))
+                (fill-region (region-beginning) (region-end))) )
+          (if currentStateIsCompact
+              (fill-paragraph nil)
+            (let ((fill-column bigFillColumnVal))
+              (fill-paragraph nil)) ) )
+
+        (put this-command 'stateIsCompact-p (if currentStateIsCompact nil t)) ) ) )
+#+end_src
+
+*** Focus Emacs 
+
+#+begin_src emacs-lisp
+(when (featurep 'ns)
+  (defun ns-raise-emacs ()
+    "Raise Emacs."
+    (ns-do-applescript "tell application \"Emacs\" to activate"))
+
+  (defun ns-raise-emacs-with-frame (frame)
+    "Raise Emacs and select the provided frame."
+    (with-selected-frame frame
+      (when (display-graphic-p)
+        (ns-raise-emacs))))
+
+  (add-hook 'after-make-frame-functions 'ns-raise-emacs-with-frame)
+
+  (when (display-graphic-p)
+    (ns-raise-emacs)))
+#+end_src
+   
+
+*** Smart Open Line
+    From [[https://github.com/grettke/home/blob/master/.emacs.el#L436][Grant Rettke]].
+
+    #+begin_src emacs-lisp
+(defun rlr/smart-open-line ()
+  (interactive)
+  (move-end-of-line nil)
+  (newline-and-indent))
+    #+end_src
+
+*** From Prelude
+**** Kill Buffer and Delete File
+From [https://github.com/bbatsov/prelude][Emacs Prelude]
+   #+begin_src emacs-lisp
+(defun delete-file-and-buffer ()
+  "Kill the current buffer and deletes the file it is visiting."
+  (interactive)
+  (let ((filename (buffer-file-name)))
+    (when filename
+      (if (vc-backend filename)
+          (vc-delete-file filename)
+        (when (y-or-n-p (format "Are you sure you want to delete %s? " filename))
+          (delete-file filename)
+          (message "Deleted file %s" filename)
+          (kill-buffer))))))
+   #+end_src
+
+**** Rename Buffer and File
+#+begin_src emacs-lisp
+(defun rename-buffer-and-file ()
+  "Rename current buffer and if the buffer is visiting a file, rename it too."
+  (interactive)
+  (let ((filename (buffer-file-name)))
+    (if (not (and filename (file-exists-p filename)))
+        (rename-buffer (read-from-minibuffer "New name: " (buffer-name)))
+      (let ((new-name (read-file-name "New name: " filename)))
+        (cond
+         ((vc-backend filename) (vc-rename-file filename new-name))
+         (t
+          (rename-file filename new-name t)
+          (set-visited-file-name new-name t t)))))))
+#+end_src
+    
+**** Open With External App
+#+begin_src emacs-lisp
+(defun open-with (arg)
+  "Open visited file in default external program.
+When in dired mode, open file under the cursor.
+
+With a prefix ARG always prompt for command to use."
+  (interactive "P")
+  (let* ((current-file-name
+          (if (eq major-mode 'dired-mode)
+              (dired-get-file-for-visit)
+            buffer-file-name))
+         (open (pcase system-type
+                 (`darwin "open")
+                 ((or `gnu `gnu/linux `gnu/kfreebsd) "xdg-open")))
+         (program (if (or arg (not open))
+                      (read-shell-command "Open current file with: ")
+                    open)))
+    (start-process "prelude-open-with-process" nil program current-file-name)))
+#+end_src
+
+**** Switch to Previous Buffer
+#+begin_src emacs-lisp
+(defun prelude-switch-to-previous-buffer ()
+  "Switch to previously open buffer.
+Repeated invocations toggle between the two most recently open buffers."
+  (interactive)
+  (switch-to-buffer (other-buffer (current-buffer) 1)))
+#+end_src
+
+     
+*** Double Capitals
+From  [[http://endlessparentheses.com/fixing-double-capitals-as-you-type.html?source=rss][Endless Parentheses]]
+
+#+begin_src emacs-lisp
+;; Define function
+(defun dcaps-to-scaps ()
+  "Convert word in DOuble CApitals to Single Capitals."
+  (interactive)
+  (and (= ?w (char-syntax (char-before)))
+       (save-excursion
+         (and (if (called-interactively-p)
+                  (skip-syntax-backward "w")
+                (= -3 (skip-syntax-backward "w")))
+              (let (case-fold-search)
+                (looking-at "\\b[[:upper:]]\\{2\\}[[:lower:]]"))
+              (capitalize-word 1)))))
+
+;; (add-hook 'post-self-insert-hook #'dcaps-to-scaps nil 'local)
+;; Define minor mode
+(define-minor-mode dubcaps-mode
+  "Toggle `dubcaps-mode'.  Converts words in DOuble CApitals to
+Single Capitals as you type."
+  :init-value nil
+  :lighter (" DC")
+  (if dubcaps-mode
+      (add-hook 'post-self-insert-hook #'dcaps-to-scaps nil 'local)
+    (remove-hook 'post-self-insert-hook #'dcaps-to-scaps 'local)))
+;; Add hook to text mode
+(add-hook 'text-mode-hook #'dubcaps-mode)
+#+end_src
+
+*** Byte-Compile Config
+
+#+begin_src emacs-lisp
+(defun byte-compile-init-dir ()
+  "Byte-compile all your dotfiles."
+  (interactive)
+  (byte-recompile-directory user-emacs-directory 0))
+#+end_src
+
+** Keybindings
+Various keybindings
+
+*** Master Menu
+#+begin_src emacs-lisp
+;; (global-set-key (kbd "s-m") 'hydra-master/body) 
+#+end_src
+
+*** Windows
+These are bindings for Wind Move, but Ace-Window does everything I need, so I may delete this sometime.
+
+=C-x o= goes to the next window, Shift+direction arrow moves between frames.
+#+begin_src emacs-lisp 
+(windmove-default-keybindings) 
+(global-set-key (kbd "C-x O") (lambda () (interactive) (other-window -1))) ;; back one
+(global-set-key (kbd "C-x C-o") (lambda () (interactive) (other-window 2))) ;; forward two
+(setq windmove-wrap-around t)
+#+end_src
+
+#+begin_src emacs-lisp
+(global-set-key (kbd "s-0") 'delete-window) 
+(global-set-key (kbd "s-1") 'delete-other-windows) 
+(global-set-key (kbd "s-3") 'split-window-right)
+(global-set-key (kbd "s-5") 'delete-frame)
+#+end_src
+
+*** Resizing Windows on the fly
+When your frame (i.e., the main Emacs window) is split into different parts (e.g. using =C-x 2= or =C-x 3=), you sometimes want to resize these parts dynamically. This defines =Shift-C-[arrow keys]= so you can do this easily. 
+ 
+#+srcname: resize-splits
+#+begin_src emacs-lisp
+  ;; resizing 'windows' (i.e., inside the frame)
+  (global-set-key (kbd "S-C-<left>") 'shrink-window-horizontally)
+  (global-set-key (kbd "S-C-<right>") 'enlarge-window-horizontally)
+  (global-set-key (kbd "S-C-<down>") 'shrink-window)
+  (global-set-key (kbd "S-C-<up>") 'enlarge-window)  
+#+end_src
+
+*** Start eshell or switch to it if it's active.
+#+begin_src emacs-lisp 
+(global-set-key (kbd "C-x m") 'eshell)
+#+end_src
+
+*** Start a new eshell even if one is active.
+#+begin_src emacs-lisp 
+(global-set-key (kbd "C-x M") (lambda () (interactive) (eshell t)))
+#+end_src
+
+*** Start a regular shell if you prefer that.
+#+begin_src emacs-lisp 
+(global-set-key (kbd "C-x M-m") 'shell)
+#+end_src
+*** CUA mode for rectangle editing
+Sometimes very useful (but we don't use the core cua keys.)
+
+#+source: cua-rectangle
+#+begin_src emacs-lisp
+  (setq cua-enable-cua-keys nil)
+  (cua-mode)
+
+;; To start a rectangle, use [C-return] and extend it using the normal
+;; movement keys (up, down, left, right, home, end, C-home,
+;; C-end). Once the rectangle has the desired size, you can cut or
+;; copy it using C-w and M-w, and you can
+;; subsequently insert it - as a rectangle - using C-y.  So
+;; the only new command you need to know to work with cua-mode
+;; rectangles is C-return!
+;;
+;; Normally, when you paste a rectangle using C-v (C-y), each line of
+;; the rectangle is inserted into the existing lines in the buffer.
+;; If overwrite-mode is active when you paste a rectangle, it is
+;; inserted as normal (multi-line) text.
+;;
+;; And there's more: If you want to extend or reduce the size of the
+;; rectangle in one of the other corners of the rectangle, just use
+;; [return] to move the cursor to the "next" corner.  Or you can use
+;; the [M-up], [M-down], [M-left], and [M-right] keys to move the
+;; entire rectangle overlay (but not the contents) in the given
+;; direction.
+;;
+;; [C-return] cancels the rectangle
+;; [C-space] activates the region bounded by the rectangle
+
+;; cua-mode's rectangle support also includes all the normal rectangle
+;; functions with easy access:
+;;
+;; [M-a] aligns all words at the left edge of the rectangle
+;; [M-b] fills the rectangle with blanks (tabs and spaces)
+;; [M-c] closes the rectangle by removing all blanks at the left edge
+;;       of the rectangle
+;; [M-f] fills the rectangle with a single character (prompt)
+;; [M-i] increases the first number found on each line of the rectangle
+;;       by the amount given by the numeric prefix argument (default 1)
+;;       It recognizes 0x... as hexadecimal numbers
+;; [M-k] kills the rectangle as normal multi-line text (for paste)
+;; [M-l] downcases the rectangle
+;; [M-m] copies the rectangle as normal multi-line text (for paste)
+;; [M-n] fills each line of the rectangle with increasing numbers using
+;;       a supplied format string (prompt)
+;; [M-o] opens the rectangle by moving the highlighted text to the
+;;       right of the rectangle and filling the rectangle with blanks.
+;; [M-p] toggles virtual straight rectangle edges
+;; [M-P] inserts tabs and spaces (padding) to make real straight edges
+;; [M-q] performs text filling on the rectangle
+;; [M-r] replaces REGEXP (prompt) by STRING (prompt) in rectangle
+;; [M-R] reverse the lines in the rectangle
+;; [M-s] fills each line of the rectangle with the same STRING (prompt)
+;; [M-t] performs text fill of the rectangle with TEXT (prompt)
+;; [M-u] upcases the rectangle
+;; [M-|] runs shell command on rectangle
+;; [M-'] restricts rectangle to lines with CHAR (prompt) at left column
+;; [M-/] restricts rectangle to lines matching REGEXP (prompt)
+;; [C-?] Shows a brief list of the above commands.
+
+;; [M-C-up] and [M-C-down] scrolls the lines INSIDE the rectangle up
+;; and down; lines scrolled outside the top or bottom of the rectangle
+;; are lost, but can be recovered using [C-z].
+  
+#+end_src
+
+*** Expand Region
+   Expand selected region by semantic units. Just keep pressing the key until it selects what you want.
+#+source: expand-region
+#+begin_src emacs-lisp
+    (require 'expand-region)
+    (global-set-key (kbd "C-=") 'er/expand-region)  
+#+end_src
+
+*** Multiple Cursors
+   Use multiple cursors for search, replace, and text-cleaning tasks. For a demonstration, see http://emacsrocks.com/e13.html
+#+source: multiple-cursors
+#+begin_src emacs-lisp
+  (require 'multiple-cursors)
+  ;; When you have an active region that spans multiple lines, the following will add a cursor to each line:
+  (global-set-key (kbd "C-S-c C-S-c") 'mc/edit-lines)
+  
+  (global-set-key (kbd "C-S-c C-e") 'mc/edit-ends-of-lines)
+  (global-set-key (kbd "C-S-c C-a") 'mc/edit-beginnings-of-lines)
+  
+  ;; When you want to add multiple cursors not based on continuous lines, but based on keywords in the buffer, use:
+  (global-set-key (kbd "C->") 'mc/mark-next-like-this)
+  (global-set-key (kbd "C-<") 'mc/mark-previous-like-this)
+  (global-set-key (kbd "C-c C-<") 'mc/mark-all-like-this)
+  
+  ;; Rectangular region mode
+  (global-set-key (kbd "H-SPC") 'set-rectangular-region-anchor)
+  
+  ;; Mark more like this
+  (global-set-key (kbd "H-a") 'mc/mark-all-like-this)
+  (global-set-key (kbd "H-p") 'mc/mark-previous-like-this)
+  (global-set-key (kbd "H-n") 'mc/mark-next-like-this)
+  (global-set-key (kbd "H-S-n") 'mc/mark-more-like-this-extended)
+  (global-set-key (kbd "H-S-a") 'mc/mark-all-in-region)
+#+end_src
+
+First mark the word, then add more cursors. To get out of multiple-cursors-mode, press <return> or C-g. The latter will first disable multiple regions before disabling multiple cursors. If you want to insert a newline in multiple-cursors-mode, use C-j.
+
+*** Save Buffers and Kill Emacs
+#+begin_src emacs-lisp
+;; set shortcut to kill whole emacs session
+(global-set-key (kbd "C-x c") 'save-buffers-kill-emacs)
+#+end_src
+
+*** Other Miscellaneous Keybindings
+#+begin_src emacs-lisp
+(global-set-key (kbd "RET") 'newline-and-indent)
+(global-set-key (kbd "C-;") 'comment-or-uncomment-region)
+(global-set-key (kbd "M-/") 'hippie-expand)
+(global-set-key (kbd "C-+") 'text-scale-increase)
+(global-set-key (kbd "C--") 'text-scale-decrease)
+(global-set-key (kbd "C-c C-k") 'compile)
+(global-set-key (kbd "C-x g") 'magit-status)
+(global-set-key (kbd "C-r") 'isearch-backward)
+;; (global-set-key (kbd "s-g") 'god-mode)
+(global-set-key (kbd "s-o") 'helm-find-files)
+(global-set-key (kbd "s-<return>") 'rlr/smart-open-line)
+#+end_src
+
+*** Zop to Char
+   Replace zap-to-char with zop-to-char
+#+begin_src emacs-lisp
+(global-set-key (kbd "M-z") 'zop-up-to-char)
+(global-set-key (kbd "M-Z") 'zop-to-char)
+
+#+end_src
+
+*** From Prelude
+**** Delete File and Kill Buffer
+#+begin_src emacs-lisp
+(global-set-key (kbd "C-c D") 'delete-file-and-buffer)
+#+end_src
+
+**** Rename Buffer and File
+    #+begin_src emacs-lisp
+(global-set-key (kbd "C-c r") 'rename-buffer-and-file)
+    #+end_src
+
+**** Open With External App
+#+begin_src emacs-lisp
+
+(global-set-key (kbd "C-c o") 'open-with)
+#+end_src
+ 
+*** Key Chords
+
+
+#+begin_src emacs-lisp
+ (key-chord-define evil-normal-state-map "jk" 'evil-force-normal-state)
+ (key-chord-define evil-visual-state-map "jk" 'evil-change-to-previous-state)
+ (key-chord-define evil-insert-state-map "jk" 'evil-normal-state)
+ (key-chord-define evil-replace-state-map "jk" 'evil-normal-state)
+ (key-chord-define evil-normal-state-map "kj" 'evil-force-normal-state)
+ (key-chord-define evil-visual-state-map "kj" 'evil-change-to-previous-state)
+ (key-chord-define evil-insert-state-map "kj" 'evil-normal-state)
+ (key-chord-define evil-replace-state-map "kj" 'evil-normal-state)
+
+(key-chord-define-global "jj" 'avy-goto-word-1)
+(key-chord-define-global "jl" 'avy-goto-line)
+(key-chord-define-global "JJ" 'prelude-switch-to-previous-buffer)
+(key-chord-define-global "uu" 'undo-tree-visualize)
+(key-chord-define-global "ww" 'ace-window)
+
+(key-chord-mode 1)
+#+end_src
+
+*** Hydras
+**** Hydra-Toggle
+
+This is useful for quickly toggling between different states.
+
+#+begin_src emacs-lisp
+     (global-set-key
+     (kbd "s-t")
+     (defhydra hydra-toggle (:color blue) 
+     "toggle"
+     ("a" abbrev-mode "abbrev")
+     ("c" column-number mode "column")
+     ("d" toggle-debug-on-error "debug")
+     ("e" evil-mode "evil")
+     ("f" auto-fill-mode "fill")
+     ("g" god-mode "god")
+     ("l" linum-mode "linum")
+     ("r" read-only-mode "read-only") 
+     ("t" toggle-truncate-lines "truncate")
+     ("w" whitespace-mode "whitespace")
+     ("q" nil "cancel")))
+#+end_src
+
+**** Hydra-Markdown
+    Not too sure how useful this will be.
+
+#+begin_src emacs-lisp
+(defhydra dh-hydra-markdown-mode (:hint nil)
+  "
+Formatting        C-c C-s    _s_: bold          _e_: italic     _b_: blockquote   _p_: pre-formatted    _c_: code
+
+Headings          C-c C-t    _h_: automatic     _1_: h1         _2_: h2           _3_: h3               _4_: h4
+
+Lists             C-c C-x    _m_: insert item   
+
+Demote/Promote    C-c C-x    _l_: promote       _r_: demote     _u_: move up      _d_: move down
+
+Links, footnotes  C-c C-a    _L_: link          _U_: uri        _F_: footnote     _W_: wiki-link      _R_: reference
+
+"
+
+
+  ("s" markdown-insert-bold)
+  ("e" markdown-insert-italic)
+  ("b" markdown-insert-blockquote :color blue)
+  ("p" markdown-insert-pre :color blue)
+  ("c" markdown-insert-code)
+
+  ("h" markdown-insert-header-dwim) 
+  ("1" markdown-insert-header-atx-1)
+  ("2" markdown-insert-header-atx-2)
+  ("3" markdown-insert-header-atx-3)
+  ("4" markdown-insert-header-atx-4)
+
+  ("m" markdown-insert-list-item)
+
+  ("l" markdown-promote)
+  ("r" markdown-demote)
+  ("d" markdown-move-down)
+  ("u" markdown-move-up)  
+
+  ("L" markdown-insert-link :color blue)
+  ("U" markdown-insert-uri :color blue)
+  ("F" markdown-insert-footnote :color blue)
+  ("W" markdown-insert-wiki-link :color blue)
+  ("R" markdown-insert-reference-link-dwim :color blue) 
+)
+
+
+(global-set-key (kbd "H-m") 'dh-hydra-markdown-mode/body)
+
+#+end_src
+    
+**** Hydra-Buffer
+I've moved this to Hydra-Windows
+
+    #+begin_src emacs-lisp
+(global-set-key
+(kbd "s-b")
+(defhydra hydra-buffer (:hint nil)
+"buffer"
+    ("b" switch-to-buffer "switch")
+    ("p" helm-projectile "projectile")
+    ("K" save-buffers-kill-emacs "Kill Emacs")
+    ("i" helm-imenu "imenu")
+    ("m" helm-bookmarks "bookmarks")
+    ("q" nil)))
+    #+end_src
+
+**** Hydra-Window 
+    This is a useful way to do things without messing with the control-key.
+#+begin_src emacs-lisp
+  (global-set-key
+  (kbd "s-w")
+  (defhydra hydra-window (:hint nil )
+      "
+          Buffers: _b_uffer  recent_f_   _p_rojectile  _i_menu  book_m_arks  _R_ename file
+    Select Window: _w_:ace window
+            Split: _v_ert  _x_:horz _s_wap _t_ranspose
+           Delete: win_d_ow  _o_thers _F_rame
+    Switch Window: _h_:left  _j_:down  _k_:up  _l_:right
+           Winner: _u_ndo  _r_edo
+           Scroll: _a_:up  _z_:down"
+
+      ("b" helm-buffers-list :exit true)
+      ("f" helm-recentf :exit true)      
+      ("p" helm-projectile :exit true)
+      ("i" helm-imenu :exit true)
+      ("m" helm-bookmarks :exit true)
+      ("R" rename-buffer-and-file :exit true)
+
+      ("z" scroll-up-line)
+      ("a" scroll-down-line)
+
+      ("u" winner-undo)
+      ("r" winner-redo)
+
+      ("h" windmove-left)
+      ("j" windmove-down)
+      ("k" windmove-up)
+      ("l" windmove-right)
+
+      ("d" delete-window)
+      ("o" delete-other-windows)
+      ("w" ace-window)
+      ("s" ace-swap-window)
+      
+      ("v" (lambda ()
+              (interactive)
+              (split-window-right)
+              (windmove-right)))
+      ("x" (lambda ()
+              (interactive)
+              (split-window-below)
+              (windmove-down)))
+
+      ("t" transpose-frame)
+
+      ("F" delete-frame)
+      ("q" nil)))
+    #+end_src
+
+**** Hydra-Master
+    I thought this was a good idea, but I'm not using it. It calls a Hydra, from which I can call other Hydras.
+
+#+begin_src emacs-lisp
+(global-set-key
+(kbd "C-c m")
+(defhydra hydra-master (:color blue) 
+"master"
+("f" hydra-buffer/body "Files and Buffers" :exit t)
+("w" hydra-window/body "Windows" :exit t)
+("t" hydra-toggle/body "Toggle Modes" :exit t)))
+;; (global-set-key (kbd "s-b") 'hydra-pause-resume)
+#+end_src
+    
+    
+**** Hydra-Blog
+
+     I didn't realize that I could jump to a directory with Hydra. I got the tip from [[http://thewanderingcoder.com/2015/02/shortcuts-to-default-directories/][Sean Miller]].
+
+    #+begin_src emacs-lisp
+(global-set-key
+(kbd "s-.")
+(defhydra hydra-blog (:color blue)
+"buffer"
+    ("n" jekyll-draft-post "new post")
+    ("p" jekyll-publish-post "publish")
+    ("t" jekyll-timestamp "timestamp")
+    ("P" (find-file "~/Sites/rlridenour.github.io/_posts/") "post directory")
+    ("d" (find-file "~/Sites/rlridenour.github.io/_drafts") "draft directory")
+    ("q" nil)))
+    #+end_src
+
+
+** Leader Key
+
+Shortcuts using the =SPC= leader. 
+
+#+NAME: evil-leader-bindings
+| Key | Function                    |
+| SPC | helm-M-x                    |
+| b   | helm-mini                   |
+| h   | help-for-help               |
+| d   | dired                       |
+| p   | helm-projectile             |
+| g   | avy-goto-char-2             |
+| u   | undo-tree-visualize         |
+| q   | delete-frame                |
+| s   | split-window-right          |
+| S   | split-window-below          |
+| o   | delete-other-windows        |
+| m   | dh-hydra-markdown-mode/body |
+| v   | hydra-master/body           |
+
+#+BEGIN_SRC emacs-lisp :var bindings=evil-leader-bindings
+  (apply #'evil-leader/set-key
+         (apply #'append (mapcar (lambda (row) (list (car row) (intern (cadr row)))) (cdr bindings))))
+#+END_SRC
+
+** The End
+If we've made it this far, I guess we can turn off debugging and set default directory.
+
+#+BEGIN_SRC emacs-lisp
+(setq debug-on-error nil)
+(setq debug-on-quit nil)
+(setq default-directory "~/")
+#+END_SRC
+
+

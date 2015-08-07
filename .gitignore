@@ -1,0 +1,24 @@
+*.elc
+.cask
+.DS_Store
+.smex-items
+elpa
+ac-comphist.dat
+init.el.base
+eshell
+auto-save-list
+tramp
+swank
+/ido.last
+/recentf
+/url/cookies
+emacs.el
+custom.el
+*~
+bookmarks
+*.el
+!init.el
+
+# Recovery and backup directories
+/auto-save-list/
+/backups/
